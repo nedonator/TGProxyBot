@@ -5,8 +5,6 @@ from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateT
 from sqlalchemy.orm import declarative_base, relationship, Session
 
 engine = create_engine("sqlite:///data.db?check_same_thread=false")
-metadata = MetaData()
-metadata.drop_all(engine)
 session = Session(bind=engine)
 Base = declarative_base()
 
@@ -76,14 +74,30 @@ users_by_username = {}
 message_queue = queue.PriorityQueue()
 
 
-def load_data_from_db():
-    users = session.query(User).all()
-    for user in users:
-        users_by_id[user.id] = user
+def find_user_by_id(user_id: int):
+    if user_id in users_by_id:
+        return users_by_id[user_id]
+    result = session.query(User).filter(User.id == user_id).all()
+    if result:
+        user = result[0]
+        users_by_id[user_id] = user
         users_by_username[user.username] = user
+        return user
+    else:
+        return None
 
 
-load_data_from_db()
+def find_user_by_username(username: str):
+    if username in users_by_username:
+        return users_by_username[username]
+    result = session.query(User).filter(User.username == username).all()
+    if result:
+        user = result[0]
+        users_by_id[username] = user
+        users_by_username[user.username] = user
+        return user
+    else:
+        return None
 
 
 def create_user(user_id: int, username: str, name: str):

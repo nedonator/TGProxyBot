@@ -3,7 +3,7 @@ import time
 import telebot
 
 from bot import bot
-from storage import users_by_id, User, State, users_by_username, change_state, send_message
+from storage import find_user_by_username, users_by_id, User, State, users_by_username, change_state, send_message
 
 
 class AbstractState:
@@ -49,6 +49,7 @@ class ChooseReceiverState(AbstractState):
         if len(text.split()) > 1:
             return None, 'Имя пользователя не должно содержать пробелов'
         username = text[1:]
+        find_user_by_username(username)
         if username not in users_by_username:
             return None, 'Пользователь не найден'
         return users_by_username[username].id, None
