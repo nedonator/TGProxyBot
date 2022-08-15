@@ -4,11 +4,13 @@ import time
 import telebot
 
 from bot import bot
-from storage import create_user, users_by_id, message_queue
+from storage import create_user, find_user_by_id, users_by_id, message_queue
 import states
 
 
 def try_create_user(user: telebot.types.User):
+    if user.id not in users_by_id:
+        find_user_by_id(user.id)
     if user.id not in users_by_id:
         new_user = create_user(user.id, user.username, f'{user.first_name} {user.last_name}')
         for user in users_by_id.values():
@@ -31,7 +33,7 @@ def handle_text(message: telebot.types.Message):
 
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_handler(callback: telebot.types.CallbackQuery):
-    user = users_by_id[callback.from_user.id]
+    user = find_user_by_id(callback.from_user.id)
     state = states.map_states[user.state.state]
     state.process_button(user, callback)
 
