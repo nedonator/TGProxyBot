@@ -4,7 +4,7 @@ import time
 import telebot
 
 from bot import bot
-from storage import create_user, find_user_by_id, users_by_id, message_queue
+from storage import create_user, delete_message, find_user_by_id, get_first_message, users_by_id
 import states
 
 
@@ -40,12 +40,18 @@ def callback_handler(callback: telebot.types.CallbackQuery):
 
 def process_message_queue():
     while True:
-        time_to_send, message = message_queue.get()
+        message = get_first_message()
         current_time = time.time()
-        if current_time < time_to_send:
-            time.sleep(time_to_send - current_time)
+        time_to_wait = message.time - current_time
+        if time_to_wait > 0:
+            if time_to_wait > 10: # other message may become first
+                time.sleep(10)
+                continue
+            else:
+                time.sleep(message.time - current_time)
         head = f'Сообщение от {users_by_id[message.from_user_id]}\n'
         bot.send_message(message.to_user_id, head + message.body)
+        delete_message(message)
 
 
 threading.Thread(target=process_message_queue, daemon=True).start()

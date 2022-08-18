@@ -1,4 +1,5 @@
 import queue
+import threading
 from typing import Optional
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, \
     PrimaryKeyConstraint, Enum, MetaData
@@ -56,7 +57,7 @@ class Message(Base):
 class SentMessage(Base):
     __tablename__ = 'sent_messages'
     message_id = Column(Integer())
-    time = Column(DateTime(), nullable=False)
+    time = Column(Integer(), nullable=False)
     from_user_id = Column(ForeignKey('users.id'))
     to_user_id = Column(ForeignKey('users.id'))
     body = Column(String(2000), nullable=False)
@@ -71,7 +72,6 @@ Base.metadata.create_all(engine)
 
 users_by_id = {}
 users_by_username = {}
-message_queue = queue.PriorityQueue()
 
 
 def find_user_by_id(user_id: int):
@@ -119,7 +119,28 @@ def change_state(user: User, state: State, message_to_user_id: Optional[int]=Non
     session.commit()
 
 
+message_queue_signal = threading.Event()
+
+
+def get_first_message():
+    while True:
+        message_queue_signal.clear()
+        message = session.query(SentMessage).order_by(SentMessage.time).limit(1).all()
+        if message == []:
+            message_queue_signal.wait()
+        else:
+            break
+    return message[0]
+
+
+def delete_message(message: SentMessage):
+    session.delete(message)
+    session.commit()
+
+
 def send_message(user: User, time: int):
     message = user.state.message
     sent_message = SentMessage(time=time, from_user_id=user.id, to_user_id=message.to_user_id, body=message.body)
-    message_queue.put((time, sent_message))
+    session.add(sent_message)
+    session.commit()
+    message_queue_signal.set()
